@@ -171,6 +171,6 @@ Essas ferramentas são amplamente utilizadas em ambientes de engenharia de dados
 
 ## 👨‍💻 Autor(es)
 
-* Seu Nome Aqui
+* Carine Ghisi Cadorin
 
 ---
