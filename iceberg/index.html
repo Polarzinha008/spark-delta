@@ -6,9 +6,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
         
-        
+        <link rel="canonical" href="https://polarzinha008.github.io/spark-delta/iceberg/">
         <link rel="shortcut icon" href="../img/favicon.ico">
-        <title>Apache Iceberg - Projeto Spark</title>
+        <title>Apache Iceberg - Projeto Spark + Delta Lake + Apache Iceberg</title>
         <link href="../css/bootstrap.min.css" rel="stylesheet">
         <link href="../css/fontawesome.min.css" rel="stylesheet">
         <link href="../css/brands.min.css" rel="stylesheet">
@@ -24,7 +24,7 @@
     <body>
         <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
             <div class="container">
-                <a class="navbar-brand" href="..">Projeto Spark</a>
+                <a class="navbar-brand" href="..">Projeto Spark + Delta Lake + Apache Iceberg</a>
                 <!-- Expander button -->
                 <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -35,7 +35,7 @@
                         <!-- Main navigation -->
                         <ul class="nav navbar-nav">
                             <li class="nav-item">
-                                <a href=".." class="nav-link">Home</a>
+                                <a href=".." class="nav-link">Contextualização</a>
                             </li>
                             <li class="nav-item">
                                 <a href="../spark/" class="nav-link">Apache Spark</a>
@@ -84,6 +84,34 @@
             
             <li class="nav-item" data-bs-level="1"><a href="#apache-iceberg" class="nav-link">Apache Iceberg</a>
               <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#o-que-e" class="nav-link">O que é</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#arquitetura" class="nav-link">Arquitetura</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#operacoes-dml-implementadas" class="nav-link">Operações DML implementadas</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#time-travel" class="nav-link">Time Travel</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#hidden-partitioning" class="nav-link">Hidden Partitioning</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#vantagens-e-quando-usar" class="nav-link">Vantagens e quando usar</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#delta-vs-iceberg-resumo" class="nav-link">Delta vs Iceberg — resumo</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -92,13 +120,186 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="apache-iceberg">Apache Iceberg</h1>
-<p>O Apache Iceberg é um formato de tabela moderno para análise de dados.</p>
-<p>Principais características:</p>
+<h2 id="o-que-e">O que é</h2>
+<p><strong>Apache Iceberg</strong> é um formato de tabela analítico moderno, criado pela <strong>Netflix</strong> em
+2018 e doado para a Apache Software Foundation. Foi projetado desde o início para ser
+<strong>engine-agnóstico</strong> — a mesma tabela pode ser lida e escrita por Spark, Trino, Flink,
+Presto, Snowflake, Dremio e outras ferramentas, sem lock-in em uma engine.</p>
+<p>Como o Delta Lake, ele estende arquivos Parquet com metadados que adicionam:</p>
 <ul>
-<li>Evolução de schema</li>
-<li>Versionamento</li>
-<li>Alta performance</li>
-</ul></div>
+<li>Transações <strong>ACID</strong>,</li>
+<li><code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code>, <code>MERGE</code>,</li>
+<li><strong>Snapshots</strong> versionados (time travel),</li>
+<li><em>Schema evolution</em> e <em>partition evolution</em>,</li>
+<li><em>Hidden partitioning</em>.</li>
+</ul>
+<hr />
+<h2 id="arquitetura">Arquitetura</h2>
+<p>A maior diferença em relação ao Delta é a estrutura de metadados em <strong>três camadas</strong>:</p>
+<pre class="mermaid"><code>flowchart TD
+    A["metadata.json&lt;br/&gt;(versão atual da tabela)"] --&gt; B["snapshot list&lt;br/&gt;(.avro)"]
+    B --&gt; C["manifest list&lt;br/&gt;(.avro)"]
+    C --&gt; D["manifest files&lt;br/&gt;(.avro)"]
+    D --&gt; E["data files&lt;br/&gt;(.parquet)"]</code></pre>
+<p>Cada operação gera um novo <code>metadata.json</code>, que aponta para um novo <em>snapshot</em>. Esse
+desenho permite operações eficientes mesmo em tabelas com milhões de arquivos.</p>
+<pre class="highlight"><code>/tmp/iceberg-warehouse/db_vendas/vendas/
+├── data/
+│   ├── 00000-x-xxx.parquet           ← dados
+│   └── ...
+└── metadata/
+    ├── v1.metadata.json               ← versão 1
+    ├── v2.metadata.json               ← versão 2
+    ├── snap-xxx.avro                  ← snapshot list
+    └── xxx.avro                       ← manifest files</code></pre>
+<hr />
+<h2 id="operacoes-dml-implementadas">Operações DML implementadas</h2>
+<p>Diferente do Delta (que usa API Python no projeto), Iceberg neste trabalho é manipulado
+<strong>inteiramente via SQL</strong> — a sintaxe é idêntica à de um banco relacional.</p>
+<h3 id="criacao-do-banco-e-da-tabela">Criação do banco e da tabela</h3>
+<pre class="highlight"><code class="language-sql">CREATE DATABASE db_vendas;
+
+CREATE TABLE spark_catalog.db_vendas.vendas (
+    id      INT,
+    produto STRING,
+    preco   INT
+) USING iceberg;</code></pre>
+<p><code>spark_catalog</code> é o catálogo padrão configurado na <code>SparkSession</code> para usar Iceberg.</p>
+<hr />
+<h3 id="insert">INSERT</h3>
+<pre class="highlight"><code class="language-sql">INSERT INTO spark_catalog.db_vendas.vendas VALUES
+    (1, 'Notebook', 3000),
+    (2, 'Mouse', 100),
+    (3, 'Teclado', 200);</code></pre>
+<pre class="highlight"><code class="language-sql">SELECT * FROM spark_catalog.db_vendas.vendas;</code></pre>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  1|Notebook| 3000|
+|  2|   Mouse|  100|
+|  3| Teclado|  200|
++---+--------+-----+</code></pre>
+<hr />
+<h3 id="update">UPDATE</h3>
+<pre class="highlight"><code class="language-sql">UPDATE spark_catalog.db_vendas.vendas
+SET preco = 150
+WHERE id = 2;</code></pre>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  2|   Mouse|  150|
+|  1|Notebook| 3000|
+|  3| Teclado|  200|
++---+--------+-----+</code></pre>
+<blockquote>
+<p>Por baixo: Iceberg cria um novo Parquet com a linha alterada, gera um novo snapshot
+apontando para ele e marca o Parquet antigo como substituído.</p>
+</blockquote>
+<hr />
+<h3 id="delete">DELETE</h3>
+<pre class="highlight"><code class="language-sql">DELETE FROM spark_catalog.db_vendas.vendas
+WHERE id = 3;</code></pre>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  2|   Mouse|  150|
+|  1|Notebook| 3000|
++---+--------+-----+</code></pre>
+<hr />
+<h2 id="time-travel">Time Travel</h2>
+<p>Cada operação cria um novo <em>snapshot</em>. É possível consultar a tabela em qualquer
+snapshot anterior:</p>
+<pre class="highlight"><code class="language-sql">-- por id de snapshot
+SELECT * FROM spark_catalog.db_vendas.vendas
+VERSION AS OF 1234567890123456789;
+
+-- por data/hora
+SELECT * FROM spark_catalog.db_vendas.vendas
+TIMESTAMP AS OF '2026-05-06 12:00:00';</code></pre>
+<p>Para listar o histórico de snapshots:</p>
+<pre class="highlight"><code class="language-sql">SELECT * FROM spark_catalog.db_vendas.vendas.snapshots;
+SELECT * FROM spark_catalog.db_vendas.vendas.history;</code></pre>
+<hr />
+<h2 id="hidden-partitioning">Hidden Partitioning</h2>
+<p>Um diferencial do Iceberg em relação ao Delta: o particionamento é <strong>escondido</strong>. Você
+declara apenas a regra; o Iceberg cuida das colunas físicas.</p>
+<pre class="highlight"><code class="language-sql">CREATE TABLE vendas_particionada (
+    id      INT,
+    produto STRING,
+    preco   INT,
+    data    TIMESTAMP
+) USING iceberg
+PARTITIONED BY (days(data));</code></pre>
+<p>Consultas com <code>WHERE data = '...'</code> automaticamente filtram apenas as partições
+relevantes — sem o usuário precisar conhecer o esquema de partição.</p>
+<hr />
+<h2 id="vantagens-e-quando-usar">Vantagens e quando usar</h2>
+<table>
+<thead>
+<tr>
+<th>Vantagem</th>
+<th>Aplicação típica</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Engine-agnóstico</td>
+<td>Stack heterogêneo (Spark + Trino + Flink)</td>
+</tr>
+<tr>
+<td>Hidden partitioning</td>
+<td>Tabelas grandes com particionamento que evolui</td>
+</tr>
+<tr>
+<td>Snapshot eficiente</td>
+<td>Time travel em tabelas com milhões de arquivos</td>
+</tr>
+<tr>
+<td>Schema/partition evolution</td>
+<td>Modelagem que muda ao longo do tempo</td>
+</tr>
+</tbody>
+</table>
+<p>Iceberg costuma ser a escolha quando há <strong>múltiplas engines</strong> acessando os mesmos dados,
+ou quando o particionamento muda com o tempo sem que se queira reescrever a tabela.</p>
+<hr />
+<h2 id="delta-vs-iceberg-resumo">Delta vs Iceberg — resumo</h2>
+<table>
+<thead>
+<tr>
+<th>Aspecto</th>
+<th>Delta Lake</th>
+<th>Apache Iceberg</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Origem</td>
+<td>Databricks (2019)</td>
+<td>Netflix (2018), hoje Apache</td>
+</tr>
+<tr>
+<td>Metadados</td>
+<td>Transaction log (<code>_delta_log/*.json</code>)</td>
+<td>3 camadas (metadata → manifest → data)</td>
+</tr>
+<tr>
+<td>Sintaxe no projeto</td>
+<td>API Python (<code>DeltaTable.update</code>)</td>
+<td>SQL (<code>UPDATE ... SET ... WHERE</code>)</td>
+</tr>
+<tr>
+<td>Particionamento</td>
+<td>Estático</td>
+<td>Hidden (evolui)</td>
+</tr>
+<tr>
+<td>Engine principal</td>
+<td>Spark / Databricks</td>
+<td>Multi-engine desde o desenho</td>
+</tr>
+</tbody>
+</table></div>
             </div>
         </div>
 

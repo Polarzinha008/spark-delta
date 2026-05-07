@@ -6,9 +6,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         
         
-        
+        <link rel="canonical" href="https://polarzinha008.github.io/spark-delta/delta/">
         <link rel="shortcut icon" href="../img/favicon.ico">
-        <title>Delta Lake - Projeto Spark</title>
+        <title>Delta Lake - Projeto Spark + Delta Lake + Apache Iceberg</title>
         <link href="../css/bootstrap.min.css" rel="stylesheet">
         <link href="../css/fontawesome.min.css" rel="stylesheet">
         <link href="../css/brands.min.css" rel="stylesheet">
@@ -24,7 +24,7 @@
     <body>
         <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
             <div class="container">
-                <a class="navbar-brand" href="..">Projeto Spark</a>
+                <a class="navbar-brand" href="..">Projeto Spark + Delta Lake + Apache Iceberg</a>
                 <!-- Expander button -->
                 <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
@@ -35,7 +35,7 @@
                         <!-- Main navigation -->
                         <ul class="nav navbar-nav">
                             <li class="nav-item">
-                                <a href=".." class="nav-link">Home</a>
+                                <a href=".." class="nav-link">Contextualização</a>
                             </li>
                             <li class="nav-item">
                                 <a href="../spark/" class="nav-link">Apache Spark</a>
@@ -84,6 +84,30 @@
             
             <li class="nav-item" data-bs-level="1"><a href="#delta-lake" class="nav-link">Delta Lake</a>
               <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#o-que-e" class="nav-link">O que é</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#arquitetura" class="nav-link">Arquitetura</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#operacoes-dml-implementadas" class="nav-link">Operações DML implementadas</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#time-travel-versionamento" class="nav-link">Time Travel (versionamento)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comandos-uteis" class="nav-link">Comandos úteis</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#vantagens-e-quando-usar" class="nav-link">Vantagens e quando usar</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -92,14 +116,168 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="delta-lake">Delta Lake</h1>
-<p>O Delta Lake adiciona confiabilidade ao Data Lake.</p>
-<p>Principais características:</p>
+<h2 id="o-que-e">O que é</h2>
+<p><strong>Delta Lake</strong> é uma camada de armazenamento de código aberto criada pela <strong>Databricks</strong>
+em 2019. Ele estende arquivos Parquet com um <strong>transaction log</strong>, transformando uma
+pasta de Parquet em uma tabela com garantias de banco de dados:</p>
 <ul>
-<li>Transações ACID</li>
-<li>Versionamento de dados</li>
-<li>Suporte a UPDATE e DELETE</li>
-<li>Time Travel</li>
-</ul></div>
+<li>Transações <strong>ACID</strong>,</li>
+<li>Operações <code>UPDATE</code>, <code>DELETE</code> e <code>MERGE</code>,</li>
+<li><strong>Time Travel</strong> (consulta a versões anteriores),</li>
+<li><em>Schema evolution</em> e <em>schema enforcement</em>,</li>
+<li>Escritas e leituras concorrentes seguras.</li>
+</ul>
+<hr />
+<h2 id="arquitetura">Arquitetura</h2>
+<p>Cada tabela Delta é uma pasta com duas partes:</p>
+<pre class="highlight"><code>/tmp/vendas/
+├── part-00000-xxx.snappy.parquet    ← os dados (Parquet imutável)
+├── part-00001-xxx.snappy.parquet
+└── _delta_log/                       ← o transaction log
+    ├── 00000000000000000000.json     ← versão 0 (criação)
+    ├── 00000000000000000001.json     ← versão 1 (INSERT)
+    ├── 00000000000000000002.json     ← versão 2 (UPDATE)
+    └── 00000000000000000003.json     ← versão 3 (DELETE)</code></pre>
+<p>Cada arquivo JSON em <code>_delta_log/</code> registra <strong>quais arquivos Parquet foram adicionados
+e removidos</strong> naquela operação. Como Parquet é imutável, qualquer mudança gera arquivos
+novos — o log é a fonte da verdade sobre o estado atual.</p>
+<pre class="mermaid"><code>flowchart LR
+    A[Operação DML] --&gt; B[Spark]
+    B --&gt; C[Escreve novo Parquet]
+    B --&gt; D[Marca Parquets antigos como removidos no log]
+    C --&gt; E[(Tabela Delta)]
+    D --&gt; E</code></pre>
+<p>Esse padrão é chamado de <strong>copy-on-write</strong>.</p>
+<hr />
+<h2 id="operacoes-dml-implementadas">Operações DML implementadas</h2>
+<p>A tabela <code>vendas</code> é a base. Os exemplos abaixo são exatamente os usados em
+<code>notebooks/delta-lake.ipynb</code>.</p>
+<h3 id="criacao-e-carga-inicial">Criação e carga inicial</h3>
+<pre class="highlight"><code class="language-python">data = [
+    (1, "Notebook", 3000),
+    (2, "Mouse", 100),
+    (3, "Teclado", 200),
+]
+
+df = spark.createDataFrame(data, ["id", "produto", "preco"])
+df.write.format("delta").mode("overwrite").save("/tmp/vendas")</code></pre>
+<p><code>mode("overwrite")</code> garante que, se a tabela já existir, ela é substituída — útil para
+poder rodar o notebook várias vezes sem erro.</p>
+<p>Resultado:</p>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  1|Notebook| 3000|
+|  2|   Mouse|  100|
+|  3| Teclado|  200|
++---+--------+-----+</code></pre>
+<hr />
+<h3 id="insert">INSERT</h3>
+<p>Para adicionar novos registros sem perder os existentes, use <code>mode("append")</code>:</p>
+<pre class="highlight"><code class="language-python">novo = spark.createDataFrame(
+    [(4, "Monitor", 1200)],
+    ["id", "produto", "preco"]
+)
+novo.write.format("delta").mode("append").save("/tmp/vendas")</code></pre>
+<p>Resultado:</p>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  1|Notebook| 3000|
+|  4| Monitor| 1200|
+|  3| Teclado|  200|
+|  2|   Mouse|  100|
++---+--------+-----+</code></pre>
+<hr />
+<h3 id="update">UPDATE</h3>
+<p>A API <code>DeltaTable</code> expõe operações DML programáticas:</p>
+<pre class="highlight"><code class="language-python">from delta.tables import DeltaTable
+
+deltaTable = DeltaTable.forPath(spark, "/tmp/vendas")
+
+deltaTable.update(
+    condition="id = 2",
+    set={"preco": "150"}
+)</code></pre>
+<p>Resultado:</p>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  1|Notebook| 3000|
+|  4| Monitor| 1200|
+|  3| Teclado|  200|
+|  2|   Mouse|  150|
++---+--------+-----+</code></pre>
+<blockquote>
+<p>Por baixo: o Spark lê os Parquets antigos, escreve um Parquet novo com a linha alterada
+e registra no <code>_delta_log</code> que o antigo foi removido.</p>
+</blockquote>
+<hr />
+<h3 id="delete">DELETE</h3>
+<pre class="highlight"><code class="language-python">deltaTable.delete("id = 3")</code></pre>
+<p>Resultado:</p>
+<pre class="highlight"><code>+---+--------+-----+
+| id| produto|preco|
++---+--------+-----+
+|  1|Notebook| 3000|
+|  4| Monitor| 1200|
+|  2|   Mouse|  150|
++---+--------+-----+</code></pre>
+<hr />
+<h2 id="time-travel-versionamento">Time Travel (versionamento)</h2>
+<p>Como o <code>_delta_log</code> mantém todas as versões, é possível ler a tabela como ela estava em
+qualquer ponto do passado:</p>
+<pre class="highlight"><code class="language-python"># por número de versão
+df_v0 = spark.read.format("delta").option("versionAsOf", 0).load("/tmp/vendas")
+
+# por data/hora
+df_ontem = (
+    spark.read.format("delta")
+        .option("timestampAsOf", "2026-05-06 12:00:00")
+        .load("/tmp/vendas")
+)</code></pre>
+<p>Casos de uso típicos: auditoria, rollback de erros, reprodução de relatórios antigos
+e debug de pipelines.</p>
+<hr />
+<h2 id="comandos-uteis">Comandos úteis</h2>
+<pre class="highlight"><code class="language-python"># histórico completo da tabela
+deltaTable.history().show()
+
+# detalhes da tabela (schema, propriedades, localização)
+spark.sql("DESCRIBE DETAIL delta.`/tmp/vendas`").show()
+
+# limpar arquivos antigos (retention default = 7 dias)
+deltaTable.vacuum()</code></pre>
+<hr />
+<h2 id="vantagens-e-quando-usar">Vantagens e quando usar</h2>
+<table>
+<thead>
+<tr>
+<th>Vantagem</th>
+<th>Aplicação típica</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACID</td>
+<td>Cargas críticas onde inconsistência custa caro</td>
+</tr>
+<tr>
+<td>UPDATE / DELETE / MERGE</td>
+<td>CDC, GDPR (direito ao esquecimento), upserts</td>
+</tr>
+<tr>
+<td>Time Travel</td>
+<td>Auditoria, debug, snapshots</td>
+</tr>
+<tr>
+<td>Schema enforcement</td>
+<td>Evita corromper a tabela com tipos errados</td>
+</tr>
+</tbody>
+</table>
+<p>Delta Lake é especialmente forte em ambientes <strong>Databricks</strong>, mas funciona em qualquer
+Spark, Trino, Flink ou via <em>Delta Standalone</em>.</p></div>
             </div>
         </div>
 
