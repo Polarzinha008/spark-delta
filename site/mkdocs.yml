@@ -1,0 +1,7 @@
+site_name: Projeto Spark
+
+nav:
+  - Home: index.md
+  - Apache Spark: spark.md
+  - Delta Lake: delta.md
+  - Apache Iceberg: iceberg.md
