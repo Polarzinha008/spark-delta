@@ -168,7 +168,7 @@ O projeto demonstrou como o uso de tecnologias modernas como Delta Lake e Apache
 Essas ferramentas são amplamente utilizadas em ambientes de engenharia de dados, especialmente em arquiteturas de Data Lake e Data Lakehouse.
 
 ---
-
+Link do mkdocs: https://polarzinha008.github.io/spark-delta/
 ## 👨‍💻 Autor(es)
 
 * Carine Ghisi Cadorin
