@@ -211,6 +211,6 @@ Link do mkdocs: https://polarzinha008.github.io/spark-delta/
 ## 👨‍💻 Autor(es)
 
 * Carine Ghisi Cadorin
-* Mateus Inacio
+* Mateus Inácio
 
 ---
