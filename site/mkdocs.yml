@@ -1,7 +1,22 @@
-site_name: Projeto Spark
+site_name: Projeto Spark + Delta Lake + Apache Iceberg
+site_description: Trabalho de Arquitetura de Dados — Apache Spark, Delta Lake e Apache Iceberg
+site_url: https://polarzinha008.github.io/spark-delta/
 
 nav:
-  - Home: index.md
+  - Contextualização: index.md
   - Apache Spark: spark.md
   - Delta Lake: delta.md
   - Apache Iceberg: iceberg.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - fenced_code
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed

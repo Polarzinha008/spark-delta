@@ -1,216 +1,125 @@
 # Projeto Apache Spark com Delta Lake e Apache Iceberg
 
-## 📌 Descrição
+Trabalho da disciplina de **Arquitetura de Dados** demonstrando operações DML
+(`INSERT`, `UPDATE`, `DELETE`) sobre tabelas **Delta Lake** e **Apache Iceberg**
+em cima do **Apache Spark**.
 
-Este projeto tem como objetivo demonstrar o uso do **Apache Spark** em conjunto com as tecnologias **Delta Lake** e **Apache Iceberg**, aplicadas a um cenário de engenharia de dados.
+A documentação conceitual completa (cenário, modelo ER, DDL e explicações) está
+no MkDocs publicado:
 
-Foram implementadas operações de manipulação de dados (DML), incluindo:
-
-* INSERT
-* UPDATE
-* DELETE
-
-Além disso, foram explorados conceitos modernos de Data Lake, como versionamento e consistência de dados.
+🔗 **<https://polarzinha008.github.io/spark-delta/>**
 
 ---
 
-## 🧠 Cenário do Projeto
+## 📦 Tecnologias e versões
 
-O projeto simula um sistema de vendas de uma loja de eletrônicos.
-
-A tabela utilizada possui os seguintes atributos:
-
-* `id`: Identificador do produto
-* `produto`: Nome do produto
-* `preco`: Valor do produto
-
-Esse cenário foi utilizado para demonstrar como as tecnologias Delta Lake e Apache Iceberg permitem manipular dados de forma eficiente e confiável.
+| Componente          | Versão  |
+|---------------------|---------|
+| Ubuntu (WSL)        | 22.04+  |
+| Java JDK            | 17      |
+| Python              | 3.10    |
+| PySpark             | 3.5.1   |
+| Delta Spark         | 3.1.0   |
+| Apache Iceberg      | 1.4.2 (`iceberg-spark-runtime-3.5_2.12`) |
+| Jupyter Lab         | última  |
 
 ---
 
-## 🚀 Tecnologias Utilizadas
+## ⚙️ Reproduzindo o ambiente
 
-* Python 3
-* Apache Spark (PySpark 3.5.1)
-* Delta Lake 3.1.0
-* Apache Iceberg
-* Jupyter Lab
-* Ubuntu (WSL)
-* Java JDK 17
----
+> Estas instruções assumem **WSL com Ubuntu** no Windows. Em Linux nativo o
+> procedimento é o mesmo a partir do passo 1.
 
-## ⚙️ Configuração do Ambiente
-
-Anterior ao inicio é nescessário instalar o ubuntu pelo windows e rodar os seguintes comandos:
-
-* No terminal usar o comando: sudo apt update
-* 
-```bash
- sudo apt update
-```
-
-* Em seguida para instalar o jdk do java
-* 
-```bash
- sudo apt install openjdk-17-jdk -y
-```
-
-* Rodar esses comandos por conta da versao 3.10 do python rodar 1 por 1
+### 1. Atualizar o sistema e instalar Java 17
 
 ```bash
 sudo apt update
+sudo apt install openjdk-17-jdk -y
+```
+
+### 2. Instalar Python 3.10
+
+O PySpark 3.5.1 não é compatível com versões mais novas do Python, por isso fixamos o 3.10:
+
+```bash
 sudo apt install software-properties-common -y
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update
-sudo apt install python3.10 python3.10-venv -y
-sudo apt install python3.10-distutils -y
-sudo apt update
+sudo apt install python3.10 python3.10-venv python3.10-distutils -y
 ```
 
-* Setar as variaveis de ambiente do python para o 3.10 para evitar conflitos do spark sendo 3.14 e do python rodando no 3.10
+### 3. Garantir que o Spark use o Python 3.10
 
 ```bash
 export PYSPARK_PYTHON=python3.10
 export PYSPARK_DRIVER_PYTHON=python3.10
 ```
 
-* Clonar o repositorio colando a linha
+> Para tornar permanente, adicione essas duas linhas ao final do `~/.bashrc`.
+
+### 4. Clonar o repositório
 
 ```bash
 git clone https://github.com/Polarzinha008/spark-delta.git
+cd spark-delta
 ```
 
-### 1. Criar ambiente virtual do python
+### 5. Criar e ativar o ambiente virtual
 
 ```bash
 python3.10 -m venv venv
 source venv/bin/activate
 ```
 
----
-
-### 2. Instalar dependências 
+### 6. Instalar as dependências
 
 ```bash
 pip install pyspark==3.5.1 delta-spark==3.1.0 jupyterlab
 ```
 
----
-
-### 3. Executar o Jupyter Lab
+### 7. Subir o Jupyter Lab
 
 ```bash
 jupyter lab
 ```
 
-Abra o link gerado no navegador.
+Abra o link gerado no navegador e execute, na ordem, as células de:
+
+- `notebooks/delta-lake.ipynb`
+- `notebooks/iceberg.ipynb`
 
 ---
 
-## 📊 Funcionalidades Implementadas
+## 🧹 Resetando os dados
 
-### 🔹 Delta Lake
+Os notebooks salvam os dados em `/tmp`. Para rodar do zero:
 
-* Criação de tabela
-* Escrita e leitura de dados
-* INSERT
-* UPDATE
-* DELETE
-* Time Travel (versionamento de dados)
+```bash
+rm -rf /tmp/vendas /tmp/iceberg-warehouse /tmp/spark-warehouse
+```
 
-### 🔹 Apache Iceberg
-
-* Criação de banco de dados
-* Criação de tabela
-* INSERT
-* UPDATE
-* DELETE
+Em seguida, no Jupyter, vá em **Kernel → Restart Kernel** e execute as células
+novamente.
 
 ---
 
-## 📁 Estrutura do Projeto
+## 📁 Estrutura
 
 ```
-trabalho-spark/
- ├── notebooks/
- │    ├── delta-lake.ipynb
- │    └── iceberg.ipynb
- ├── README.md
- ├── .gitignore
+spark-delta/
+├── notebooks/
+│   ├── delta-lake.ipynb
+│   └── iceberg.ipynb
+├── site/                  # documentação MkDocs
+│   ├── docs/
+│   └── mkdocs.yml
+├── README.md
+└── .gitignore
 ```
 
 ---
 
-## 🧪 Exemplos de Operações
+## 👨‍💻 Autores
 
-### INSERT
-
-```python
-novo.write.format("delta").mode("append").save("/tmp/vendas")
-```
-
----
-
-### UPDATE
-
-```python
-deltaTable.update(
-    condition="id = 2",
-    set={"preco": "150"}
-)
-```
-
----
-
-### DELETE
-
-```python
-deltaTable.delete("id = 3")
-```
-
----
-
-## 📚 Sobre as Tecnologias
-
-### 🔸 Apache Spark
-
-Framework distribuído para processamento de grandes volumes de dados, com suporte a processamento em memória e alta performance.
-
----
-
-### 🔸 Delta Lake
-
-Camada que adiciona confiabilidade ao Data Lake, permitindo:
-
-* Transações ACID
-* Versionamento de dados
-* Operações UPDATE e DELETE
-* Time Travel
-
----
-
-### 🔸 Apache Iceberg
-
-Formato de tabela analítico moderno que oferece:
-
-* Evolução de schema
-* Versionamento
-* Melhor desempenho em consultas
-* Gerenciamento eficiente de grandes volumes de dados
-
----
-
-## 🎯 Conclusão
-
-O projeto demonstrou como o uso de tecnologias modernas como Delta Lake e Apache Iceberg permite trabalhar com dados de forma estruturada, confiável e escalável.
-
-Essas ferramentas são amplamente utilizadas em ambientes de engenharia de dados, especialmente em arquiteturas de Data Lake e Data Lakehouse.
-
----
-Link do mkdocs: https://polarzinha008.github.io/spark-delta/
-## 👨‍💻 Autor(es)
-
-* Carine Ghisi Cadorin
-* Mateus Inácio
-
----
+- Carine Ghisi Cadorin
+- Mateus Inacio
