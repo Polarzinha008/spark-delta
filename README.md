@@ -36,15 +36,54 @@ Esse cenário foi utilizado para demonstrar como as tecnologias Delta Lake e Apa
 * Apache Iceberg
 * Jupyter Lab
 * Ubuntu (WSL)
-
+* Java JDK 17
 ---
 
 ## ⚙️ Configuração do Ambiente
 
+Anterior ao inicio é nescessário instalar o ubuntu pelo windows e rodar os seguintes comandos:
+
+* No terminal usar o comando: sudo apt update
+* 
+```bash
+ sudo apt update
+```
+
+* Em seguida para instalar o jdk do java
+* 
+```bash
+ sudo apt install openjdk-17-jdk -y
+```
+
+* Rodar esses comandos por conta da versao 3.10 do python rodar 1 por 1
+
+```bash
+sudo apt update
+sudo apt install software-properties-common -y
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install python3.10 python3.10-venv -y
+sudo apt install python3.10-distutils -y
+sudo apt update
+```
+
+* Setar as variaveis de ambiente do python para o 3.10 para evitar conflitos do spark sendo 3.14 e do python rodando no 3.10
+
+```bash
+export PYSPARK_PYTHON=python3.10
+export PYSPARK_DRIVER_PYTHON=python3.10
+```
+
+* Clonar o repositorio colando a linha
+
+```bash
+git clone https://github.com/Polarzinha008/spark-delta.git
+```
+
 ### 1. Criar ambiente virtual do python
 
 ```bash
-python3 -m venv venv
+python3.10 -m venv venv
 source venv/bin/activate
 ```
 
